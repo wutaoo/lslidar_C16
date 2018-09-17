@@ -1,25 +1,26 @@
-/*
- * This file is part of lslidar_c16 driver.
- *
- * The driver is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * The driver is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with the driver.  If not, see <http://www.gnu.org/licenses/>.
- */
+/***************************************************************************
+Copyright 2018 The Leishen Authors. All Rights Reserved                     /
+                                                                            /
+Licensed under the Apache License, Version 2.0 (the "License");             /
+you may not use this file except in compliance with the License.            /
+You may obtain a copy of the License at                                     /
+                                                                            /
+    http://www.apache.org/licenses/LICENSE-2.0                              /
+                                                                            /
+Unless required by applicable law or agreed to in writing, software         /
+distributed under the License is distributed on an "AS IS" BASIS,           /
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.    /
+See the License for the specific language governing permissions and         /
+limitations under the License.                                              /
+****************************************************************************/
 
-#include <lslidar_c16_decoder/lslidar_c16_decoder.h>
+#include <leishen_lslidar_c16_decoder/lslidar_c16_decoder.h>
 #include <std_msgs/Int8.h>
 
 using namespace std;
 
+namespace apollo {
+namespace drivers {
 namespace lslidar_c16_decoder {
 LslidarC16Decoder::LslidarC16Decoder(
         ros::NodeHandle& n, ros::NodeHandle& pn):
@@ -50,7 +51,7 @@ bool LslidarC16Decoder::loadParameters() {
     pnh.param<bool>("publish_channels", publish_channels, true);
     pnh.param<bool>("apollo_interface", apollo_interface, false);
     pnh.param<string>("fixed_frame_id", fixed_frame_id, "map");
-    pnh.param<string>("child_frame_id", child_frame_id, "lslidar");
+    pnh.param<string>("child_frame_id", child_frame_id, "world");
 
     angle_base = M_PI*2 / point_num;
 
@@ -67,7 +68,7 @@ bool LslidarC16Decoder::createRosIO() {
     sweep_pub = nh.advertise<lslidar_c16_msgs::LslidarC16Sweep>(
                 "lslidar_sweep", 10);
     point_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>(
-                "lslidar_point_cloud", 10);
+                "/point_raw", 10);
     scan_pub = nh.advertise<sensor_msgs::LaserScan>(
                 "scan", 100);
     channel_scan_pub = nh.advertise<lslidar_c16_msgs::LslidarC16Layer>(
@@ -127,17 +128,23 @@ void LslidarC16Decoder::publishPointCloud() {
         // seems to be corrupted based on the received data.
         // TODO: The two end points should be removed directly
         //    in the scans.
-        double timestamp = ros::Time::now().toSec();
+        
+        // point_time unit is sec
+        double timestamp = point_time;
         point_cloud->header.stamp = static_cast<uint64_t>(timestamp * 1e6);
         if (scan.points.size() == 0) continue;
         size_t j;
         VPoint point;
         for (j = 1; j < scan.points.size()-1; ++j) {
-            point.timestamp = timestamp;
             point.x = scan.points[j].x;
             point.y = scan.points[j].y;
             point.z = scan.points[j].z;
             point.intensity = scan.points[j].intensity;
+            point.range = scan.points[j].distance;
+            point.h_angle = scan.points[j].azimuth;
+            point.v_angle = layer_altitude[i];
+            point.laserid =i+1;
+
             point_cloud->points.push_back(point);
             ++point_cloud->width;
         }
@@ -228,11 +235,11 @@ void LslidarC16Decoder::publishChannelScan()
         scan.intensities[point_num - 1-point_idx] = sweep_data->scans[j].points[i].intensity;
     }
 
-    for (int i = point_num - 1; i >= 0; i--)
-	{
-		if((i >= angle_disable_min*point_num/360) && (i < angle_disable_max*point_num/360))
-			scan.ranges[i] = std::numeric_limits<float>::infinity();
-	}
+        for (int i = point_num - 1; i >= 0; i--)
+        {
+            if((i >= angle_disable_min*point_num/360) && (i < angle_disable_max*point_num/360))
+                scan.ranges[i] = std::numeric_limits<float>::infinity();
+        }
 
         multi_scan->scan_channel[j] = scan;
         if (j == layer_num_local)
@@ -300,7 +307,6 @@ point_struct LslidarC16Decoder::getMeans(std::vector<point_struct> clusters)
     {
         tmp.distance = std::numeric_limits<float>::infinity();
         tmp.intensity = std::numeric_limits<float>::infinity();
-
     }
     else
     {
@@ -422,6 +428,7 @@ void LslidarC16Decoder::packetCallback(
 
     // Decode the packet
     decodePacket(raw_packet);
+    point_time = msg->stamp.toSec();
 
     // Find the start of a new revolution
     //    If there is one, new_sweep_start will be the index of the start firing,
@@ -600,4 +607,5 @@ void LslidarC16Decoder::packetCallback(
 }
 
 } // end namespace lslidar_c16_decoder
-
+}
+}

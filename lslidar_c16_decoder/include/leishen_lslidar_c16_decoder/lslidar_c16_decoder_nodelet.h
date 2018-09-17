@@ -14,24 +14,32 @@ See the License for the specific language governing permissions and         /
 limitations under the License.                                              /
 ****************************************************************************/
 
+#ifndef LSLIDAR_C16_DECODER_NODELET_H
+#define LSLIDAR_C16_DECODER_NODELET_H
+
 #include <ros/ros.h>
+#include <pluginlib/class_list_macros.h>
+#include <nodelet/nodelet.h>
 
 #include <leishen_lslidar_c16_decoder/lslidar_c16_decoder.h>
 
-int main(int argc, char** argv) {
-    ros::init(argc, argv, "lslidar_c16_decoder_node");
-    ros::NodeHandle nh;
-    ros::NodeHandle pnh("~");
+namespace apollo {
+namespace drivers {
+namespace lslidar_c16_decoder {
+class LslidarC16DecoderNodelet: public nodelet::Nodelet {
+public:
 
-    apollo::drivers::lslidar_c16_decoder::LslidarC16DecoderPtr decoder(
-                new apollo::drivers::lslidar_c16_decoder::LslidarC16Decoder(nh, pnh));
+  LslidarC16DecoderNodelet() {}
+  ~LslidarC16DecoderNodelet() {}
 
-    if (!decoder->initialize()) {
-        ROS_INFO("Cannot initialize the decoder...");
-        return -1;
-    }
+private:
 
-  ros::spin();
+  virtual void onInit();
+  LslidarC16DecoderPtr decoder;
+};
 
-    return 0;
+} // end namespace lslidar_n301_decoder
 }
+}
+
+#endif

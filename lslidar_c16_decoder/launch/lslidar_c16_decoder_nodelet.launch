@@ -3,10 +3,10 @@
   <arg name="fixed_frame_id" default="map"/>
   <arg name="child_frame_id" default="lslidar"/>
 
-  <include file="$(find lslidar_c16_driver)/launch/lslidar_c16_driver_nodelet.launch"/>
+  <include file="$(find leishen_lslidar_c16_driver)/launch/lslidar_c16_driver_nodelet.launch"/>
 
   <node pkg="nodelet" type="nodelet" name="lslidar_c16_decoder_nodelet"
-    args="load lslidar_c16_decoder/LslidarC16DecoderNodelet
+    args="load leishen_lslidar_c16_decoder/LslidarC16DecoderNodelet
     lslidar_c16_nodelet_manager"
     output="screen">
     <param name="fixed_frame_id" value="$(arg fixed_frame_id)"/>
