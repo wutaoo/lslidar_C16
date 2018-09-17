@@ -1,19 +1,18 @@
-/*
- * This file is part of lslidar_c16 driver.
- *
- * The driver is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * The driver is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with the driver.  If not, see <http://www.gnu.org/licenses/>.
- */
+/***************************************************************************
+Copyright 2018 The Leishen Authors. All Rights Reserved                     /
+                                                                            /
+Licensed under the Apache License, Version 2.0 (the "License");             /
+you may not use this file except in compliance with the License.            /
+You may obtain a copy of the License at                                     /
+                                                                            /
+    http://www.apache.org/licenses/LICENSE-2.0                              /
+                                                                            /
+Unless required by applicable law or agreed to in writing, software         /
+distributed under the License is distributed on an "AS IS" BASIS,           /
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.    /
+See the License for the specific language governing permissions and         /
+limitations under the License.                                              /
+****************************************************************************/
 
 #ifndef LSLIDAR_C16_DECODER_H
 #define LSLIDAR_C16_DECODER_H
@@ -27,6 +26,7 @@
 #include <boost/shared_ptr.hpp>
 
 #include <ros/ros.h>
+#include <std_msgs/UInt64.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/LaserScan.h>
 #include <std_msgs/Int8.h>
@@ -40,7 +40,8 @@
 #include <lslidar_c16_msgs/LslidarC16Sweep.h>
 #include <lslidar_c16_msgs/LslidarC16Layer.h>
 
-
+namespace apollo {
+namespace drivers {
 namespace lslidar_c16_decoder {
 
 // Raw lslidar packet constants and structures.
@@ -88,6 +89,29 @@ static const double scan_altitude[16] = {
     -0.017453292519943295, 0.2617993877991494
 };
 
+static const double layer_altitude[16] = {
+        -0.2617993877991494,
+        -0.22689280275926285,
+        -0.19198621771937624,
+        -0.15707963267948966,
+        -0.12217304763960307,
+        -0.08726646259971647,
+        -0.05235987755982989,
+        -0.017453292519943295,
+         0.017453292519943295,
+         0.05235987755982989,
+         0.08726646259971647,
+         0.12217304763960307,
+         0.15707963267948966,
+         0.19198621771937624,
+         0.22689280275926285,
+         0.2617993877991494
+};
+
+static const int layerid_sorted[16] = {
+        1,9,2,10,3,11,4,12,5,13,6,14,7,15,8,16
+};
+
 static const double cos_scan_altitude[16] = {
     std::cos(scan_altitude[ 0]), std::cos(scan_altitude[ 1]),
     std::cos(scan_altitude[ 2]), std::cos(scan_altitude[ 3]),
@@ -117,8 +141,11 @@ typedef struct{
 
 struct PointXYZIT {
   PCL_ADD_POINT4D
-  uint8_t intensity;
-  double timestamp;
+  float intensity;
+  float v_angle;
+  float h_angle;
+  float range;
+  int laserid;
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW  // make sure our new allocators are aligned
 } EIGEN_ALIGN16;
 // enforce SSE padding for correct memory alignment
@@ -215,6 +242,7 @@ private:
     double last_azimuth;
     double sweep_start_time;
     double packet_start_time;
+    double point_time;
     int layer_num;
     Firing firings[FIRINGS_PER_PACKET];
 
@@ -244,10 +272,12 @@ typedef PointXYZIT VPoint;
 typedef pcl::PointCloud<VPoint> VPointCloud;
 
 } // end namespace lslidar_c16_decoder
+}
+}
 
-
-POINT_CLOUD_REGISTER_POINT_STRUCT(lslidar_c16_decoder::PointXYZIT,
-                                  (float, x, x)(float, y, y)(float, z, z)(
-                                      uint8_t, intensity,
-                                      intensity)(double, timestamp, timestamp))
+POINT_CLOUD_REGISTER_POINT_STRUCT(apollo::drivers::lslidar_c16_decoder::PointXYZIT,
+                                  (float, x, x)(float, y, y)(float, z, z)
+                                          (float, intensity, intensity) (float, v_angle, v_angle)
+                                          (float, h_angle, h_angle)(float, range, range)(int, laserid, laserid)
+)
 #endif
